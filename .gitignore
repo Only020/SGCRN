@@ -1,42 +1,39 @@
-# 忽略 Python 编译文件
+# Ignore Python compiled files
 *.pyc
 *.pyo
 *.pyd
 __pycache__/
 
-# 忽略虚拟环境文件夹
+# Ignore virtual environment folders
 venv/
 env/
 
-# 忽略 Jupyter Notebook 的检查点文件
+# Ignore Jupyter Notebook checkpoint files
 .ipynb_checkpoints/
 
-# 忽略 IDE 和编辑器相关的配置文件
+# Ignore IDE and editor configuration files
 .vscode/
 .idea/
 
-# 忽略操作系统生成的文件
+# Ignore OS generated files
 .DS_Store
 Thumbs.db
 
-# 忽略日志文件
-*.log
-
-# 忽略临时文件
+# Ignore temporary files
 *.bak
 *.swp
 *.tmp
 
-# 忽略数据
+# Ignore data
 data/
 models/
 
-# 如果有指定的文件或文件夹想要忽略，可以手动添加
-# 例如，如果有一个名为 "output" 的文件夹
+# Manually add specific files or folders to ignore
 study_1/
 study/
 MTS_data/
 Ablation_model/
+test_logs/
 pems.sh
 pems08.sh
 test_ablation.py
