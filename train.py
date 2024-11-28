@@ -39,11 +39,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-d",'--data', type=str, default='PEMS08', help='data name')
 parser.add_argument("-g","--gpu", type=int, default=0, help="gpu id")
 parser.add_argument('-m','--mask', type=float, default=0.25, help='mask rate')
-parser.add_argument("--layer_num", type=int, default=2, help="layer_num")
 parser.add_argument("--epoch", type=int, default=100, help="epoch")
 parser.add_argument("--emb_size", type=int, default=16, help="emb_size")
 parser.add_argument("--grap_size", type=int, default=8, help="grap_size")
-# if_spatial=16, if_time_in_day=16, if_day_in_week=16
 parser.add_argument("--if_spatial", type=int, default=16, help="if_spatial")
 parser.add_argument("-day","--if_time_in_day", type=int, default=16, help="if_time_in_day")
 parser.add_argument("-week","--if_day_in_week", type=int, default=16, help="if_day_in_week")
@@ -77,7 +75,7 @@ out_len=12
 in_size=3
 emb_size=args.emb_size
 grap_size = args.grap_size
-layer_num = args.layer_num
+layer_num = 2
 dropout = 0.15
 adj_mx = [torch.tensor(i).float() for i in adj_mx]
 max_norm = 5      #Gradient pruning
@@ -147,9 +145,9 @@ device = torch.device(f"cuda:{args.gpu}" if torch.cuda.is_available() else "cpu"
 
 
 ### model
-my_net = SGCRN(input_len, num_id, out_len, in_size, emb_size, grap_size, layer_num, dropout, adj_mx,args.if_spatial,args.if_time_in_day,args.if_day_in_week)
-my_net = my_net.to(device)
-optimizer = optim.Adam(params=my_net.parameters(),lr=lr_rate)
+model = SGCRN(input_len, num_id, out_len, in_size, emb_size, grap_size, layer_num, dropout, adj_mx,args.if_spatial,args.if_time_in_day,args.if_day_in_week)
+model = model.to(device)
+optimizer = optim.Adam(params=model.parameters(),lr=lr_rate)
 num_vail = 0
 min_vaild_loss = float("inf")
 wait = 0
@@ -167,7 +165,7 @@ save_path = f"./study/saved_models/{data_name}/{int(IF_mask*100)}_{now}/"
 if not os.path.exists(save_path):
     os.makedirs(save_path)
 save = os.path.join(save_path, f"{data_name}-best.pt")
-# 使用print_log打印所有超参数
+
 print_log('data_name:',data_name,'num_id:',num_id,'mask:',
           IF_mask,'layer_num:',layer_num,'epoch:',epoch,
           'emb_size:',emb_size,'grap_size:',grap_size,'if_spatial:',args.if_spatial,
@@ -177,21 +175,21 @@ print_log('data_name:',data_name,'num_id:',num_id,'mask:',
 for i in range(epoch):
     num = 0
     loss_out = 0.0
-    my_net.train()
+    model.train()
     start = time.time()
     for data in train_data:
-        my_net.zero_grad()
+        model.zero_grad()
 
         train_feature = data[:, :, :,0:in_size].to(device)
         train_target = data[:, :, :,-1].to(device)
-        train_pre = my_net(train_feature)
+        train_pre = model(train_feature)
         loss_data = masked_mae(train_pre,train_target,0.0)
 
         num += 1
         loss_data.backward()
 
         if max_norm > 0 and i < max_num:
-            nn.utils.clip_grad_norm_(my_net.parameters(), max_norm=max_norm)
+            nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_norm)
         else:
             pass
         num += 1
@@ -204,23 +202,23 @@ for i in range(epoch):
 
     num_va = 0
     loss_vaild = 0.0
-    my_net.eval()
+    model.eval()
     with torch.no_grad():
         for data in valid_data:
 
             valid_x = data[:, :, :,0:in_size].to(device)
             valid_y = data[:, :, :,-1].to(device)
-            valid_pre = my_net(valid_x)
+            valid_pre = model(valid_x)
             loss_data = masked_mae(valid_pre, valid_y,0.0)
 
             num_va += 1
             loss_vaild += loss_data
         loss_vaild = loss_vaild / num_va
 
-    # 保存最优模型
+
     if loss_vaild < min_vaild_loss:
         min_vaild_loss = loss_vaild
-        best_state_dict = copy.deepcopy(my_net.state_dict())
+        best_state_dict = copy.deepcopy(model.state_dict())
 
         if i>=20:
             epoch_path = os.path.join(save_path, f"{data_name}_{i+1}.pt")
@@ -234,9 +232,9 @@ for i in range(epoch):
     print_log('Loss of the {} epoch of the training set: {:02.4f}, Loss of the validation set Loss:{:02.4f}, training time: {:02.4f}:'.format(i+1,loss_out,loss_vaild,end - start),log=log)
 
 torch.save(best_state_dict, save)
-my_net.load_state_dict(best_state_dict)
-my_net = my_net.to(device)
-my_net.eval()
+model.load_state_dict(best_state_dict)
+model = model.to(device)
+model.eval()
 
 with torch.no_grad():
     all_pre = 0.0
@@ -245,7 +243,7 @@ with torch.no_grad():
     for data in test_data:
         test_feature = data[:, :, :,0:in_size].to(device)
         test_target = data[:, :, :,-1].to(device)
-        test_pre = my_net(test_feature)
+        test_pre = model(test_feature)
         if num == 0:
             all_pre = test_pre
             all_true = test_target
